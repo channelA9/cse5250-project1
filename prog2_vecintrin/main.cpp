@@ -265,6 +265,57 @@ void clampedExpVector(float* values, int* exponents, float* output, int N) {
   //  5. Store under the active-lane mask (_cse5250_vstore_float).
   //
 
+  __cse5250_vec_float x;           // current chunk's base values
+  __cse5250_vec_int   y;           // current chunk's exponents (per-lane countdown)
+  __cse5250_vec_float result;      // accumulating power
+  __cse5250_vec_float ones  = _cse5250_vset_float(1.f);
+  __cse5250_vec_float clamp = _cse5250_vset_float(9.999999f);
+  __cse5250_vec_int   zero_i = _cse5250_vset_int(0);
+  __cse5250_vec_int   one_i  = _cse5250_vset_int(1);
+
+  for (int i = 0; i < N; i += VECTOR_WIDTH) {
+
+    // Step 1: last chunk may have fewer than VECTOR_WIDTH elements, so cut to size
+    int remaining = N - i;
+    __cse5250_mask maskActive = _cse5250_init_ones(remaining < VECTOR_WIDTH ? remaining : VECTOR_WIDTH);
+
+    // Step 2: load this chunk's values and exponents under the active mask
+    _cse5250_vload_float(x, values + i,    maskActive);
+    _cse5250_vload_int  (y, exponents + i, maskActive);
+
+    // Step 3: vectorized while-loop exponentiation
+    //     - Initialize result = 1.0 for ALL active lanes, so entries where y = 0 are correct by default
+    //     - Initialize count = y
+    //     - Each iteration: find lanes where count > 0, multiply those, decrement those
+
+    // starting with result = 1.0 for all active lanes
+    _cse5250_vset_float(result, 1.f, maskActive);
+
+    // use y as the countdown (multiply x into result y times)
+    __cse5250_vec_int count;
+    _cse5250_vmove_int(count, y, maskActive);
+
+    // find lanes where count > 0, multiply those, decrement those
+    __cse5250_mask maskWorking;
+    _cse5250_vgt_int(maskWorking, count, zero_i, maskActive);
+
+    while (_cse5250_cntbits(maskWorking) > 0) {
+      // result *= x  (only in lanes still working)
+      _cse5250_vmult_float(result, result, x, maskWorking);
+      // count--      (only in lanes still working)
+      _cse5250_vsub_int(count, count, one_i, maskWorking);
+      // recompute which lanes still have more counts
+      _cse5250_vgt_int(maskWorking, count, zero_i, maskActive);
+    }
+
+    // Step 4: clamp result where result > 9.999999f, set to 9.999999f
+    __cse5250_mask maskClamp;
+    _cse5250_vgt_float(maskClamp, result, clamp, maskActive);
+    _cse5250_vset_float(result, 9.999999f, maskClamp);
+
+    // Step 5: store under the active-lane mask
+    _cse5250_vstore_float(output + i, result, maskActive);
+  }
 }
 
 // returns the sum of all elements in values
@@ -281,7 +332,7 @@ float arraySumSerial(float* values, int N) {
 // You can assume N is a multiple of VECTOR_WIDTH
 // You can assume VECTOR_WIDTH is a power of 2
 float arraySumVector(float* values, int N) {
-  
+
   //
   // CSE5250 STUDENTS TODO: Implement your vectorized version of arraySumSerial here
   //
@@ -293,6 +344,9 @@ float arraySumVector(float* values, int N) {
   //     interleave pair (see CSE5250intrin.h) that sums lanes in log2(WIDTH)
   //     steps — apply it, then read lane 0.
   //
+
+  // NOTE: Not doing the extra bonus on this one.
+
   for (int i=0; i<N; i+=VECTOR_WIDTH) {
 
   }

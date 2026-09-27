@@ -11,7 +11,7 @@ else
 endif
 
 CXX=g++ $(CSUSB_ARCHFLAGS) -march=native
-CXXFLAGS=-I../common -Iobjs/ -O3 -Wall
+CXXFLAGS=-I../common -Iobjs/ -O3 -Wall -fopenmp -D ISPC_USE_OMP # Use OMP backend: MinGW lacks sysconf needed by PTHREADS backend
 ISPC=ispc
 # note: requires AVX2 capable machine
 ISPCFLAGS=-O3 $(CSUSB_ISPC_ARCH) --pic
@@ -41,7 +41,7 @@ clean:
 OBJS=$(OBJDIR)/main.o $(OBJDIR)/sqrtSerial.o $(OBJDIR)/sqrt_ispc.o $(PPM_OBJ) $(TASKSYS_OBJ)
 
 $(APP_NAME): dirs $(OBJS)
-		$(CXX) $(CXXFLAGS) -o $@ $(OBJS) -lm $(TASKSYS_LIB)
+		$(CXX) $(CXXFLAGS) -o $@ $(OBJS) -lm $(TASKSYS_LIB) -fopenmp
 
 $(OBJDIR)/%.o: %.cpp
 		$(CXX) $< $(CXXFLAGS) -c -o $@

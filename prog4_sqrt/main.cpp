@@ -35,7 +35,16 @@ int main() {
         // to you generate best and worse-case speedups
         
         // starter code populates array with random input values
-        values[i] = .001f + 2.998f * static_cast<float>(rand()) / RAND_MAX;
+        // values[i] = .001f + 2.998f * static_cast<float>(rand()) / RAND_MAX;
+
+        // best case: all values identical near 3.0
+        // - maximum Newton iterations = compute-bound (not memory-bound)
+        // - all SIMD lanes do identical work = zero divergence
+        // values[i] = 2.999f;
+
+        // worst case for 8-wide AVX2: 7 of 8 lanes finish instantly
+        // but 1 of 8 lanes takes max iterations.
+        values[i] = (i % 8 == 7) ? 2.999f : 1.0f;
     }
 
     // generate a gold version to check results

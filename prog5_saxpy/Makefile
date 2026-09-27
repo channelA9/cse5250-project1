@@ -11,7 +11,7 @@ else
 endif
 
 CXX=g++ $(CSUSB_ARCHFLAGS)
-CXXFLAGS=-I../common -Iobjs/ -O2 -Wall 
+CXXFLAGS=-I../common -Iobjs/ -O2 -Wall -fopenmp -D ISPC_USE_OMP # Use OMP backend: MinGW lacks sysconf needed by PTHREADS backend
 ISPC=ispc
 # note: requires AVX2
 ISPCFLAGS=-O3 $(CSUSB_ISPC_ARCH) --pic
@@ -37,7 +37,7 @@ clean:
 OBJS=$(OBJDIR)/main.o $(OBJDIR)/saxpySerial.o $(OBJDIR)/saxpy_ispc.o $(TASKSYS_OBJ)
 
 $(APP_NAME): dirs $(OBJS)
-		$(CXX) $(CXXFLAGS) -o $@ $(OBJS) -lm $(TASKSYS_LIB)
+		$(CXX) $(CXXFLAGS) -o $@ $(OBJS) -lm $(TASKSYS_LIB) -fopenmp
 
 $(OBJDIR)/%.o: %.cpp
 		$(CXX) $< $(CXXFLAGS) -c -o $@

@@ -11,7 +11,7 @@ else
 endif
 
 CXX=g++ $(CSUSB_ARCHFLAGS)
-CXXFLAGS=-I../common -Iobjs/ -O3 -Wall -fPIC -ffp-contract=off
+CXXFLAGS=-I../common -Iobjs/ -O3 -Wall -fPIC -ffp-contract=off -fopenmp -D ISPC_USE_OMP # Use OMP backend: MinGW lacks sysconf needed by PTHREADS backend
 ISPC=ispc
 # note: requires AVX2
 # disabling AVX2 FMA since it causes a difference in output compared to reference on Mandelbrot 
@@ -41,7 +41,7 @@ clean:
 OBJS=$(OBJDIR)/main.o $(OBJDIR)/mandelbrotSerial.o $(OBJDIR)/mandelbrot_ispc.o $(PPM_OBJ) $(TASKSYS_OBJ)
 
 $(APP_NAME): dirs $(OBJS)
-		$(CXX) $(CXXFLAGS) -o $@ $(OBJS) -lm $(TASKSYS_LIB)
+		$(CXX) $(CXXFLAGS) -o $@ $(OBJS) -lm $(TASKSYS_LIB) -fopenmp
 
 $(OBJDIR)/%.o: %.cpp
 		$(CXX) $< $(CXXFLAGS) -c -o $@

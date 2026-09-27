@@ -74,7 +74,7 @@ export void mandelbrot_ispc_withtasks(uniform float x0, uniform float y0,
     // (so every row is computed once). Try a count tied to the image height,
     // e.g. one task per row or a few rows per task, and measure which gives the
     // best speedup on your machine. Do NOT hard-code a value tuned to one CPU.
-    uniform int numTasks = 2;                 // TODO: increase me
+    uniform int numTasks = 25;                 // TODO: increase me
     uniform int rowsPerTask = height / numTasks;
 
     launch[numTasks] mandelbrot_ispc_task(x0, y0, x1, y1,

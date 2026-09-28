@@ -1,8 +1,11 @@
 import os
 
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
+
+matplotlib.use('Agg')
 
 START_LOGFILE = "./start.log"
 END_LOGFILE = "./end.log"

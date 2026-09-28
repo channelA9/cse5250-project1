@@ -11,7 +11,9 @@ else
 endif
 
 CXX=g++ $(CSUSB_ARCHFLAGS) -march=native
-CXXFLAGS=-I../common -Iobjs/ -O3 -Wall
+# CSUSB/Windows: static libstdc++/libgcc on link lines so the exe
+# can't pick up Git's mismatched libstdc++-6.dll from PATH at runtime.
+CXXFLAGS=-I../common -Iobjs/ -O3 -Wall -fopenmp -D ISPC_USE_OMP # Use OMP backend: MinGW lacks sysconf needed by PTHREADS backend
 
 
 APP_NAME=kmeans
@@ -38,12 +40,12 @@ clean:
 # CSUSB: standalone dataset generator (optional; kmeans also auto-generates).
 gen: gen_data
 gen_data: gen_data.cpp
-		$(CXX) $(CXXFLAGS) -o gen_data gen_data.cpp
+		$(CXX) $(CXXFLAGS) -o gen_data gen_data.cpp -static-libstdc++ -static-libgcc
 
 OBJS=$(OBJDIR)/main.o $(OBJDIR)/kmeansThread.o $(OBJDIR)/utils.o $(PPM_OBJ) $(TASKSYS_OBJ)
 
 $(APP_NAME): dirs $(OBJS)
-		$(CXX) $(CXXFLAGS) -o $@ $(OBJS) -lm $(TASKSYS_LIB)
+		$(CXX) $(CXXFLAGS) -o $@ $(OBJS) -lm $(TASKSYS_LIB) -fopenmp -static-libstdc++ -static-libgcc
 
 $(OBJDIR)/%.o: %.cpp
 		$(CXX) $< $(CXXFLAGS) -c -o $@

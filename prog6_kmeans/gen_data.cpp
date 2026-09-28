@@ -88,11 +88,12 @@ static void writeData(const string &filename, double *data,
 int main(int argc, char **argv) {
   srand(SEED);
 
-  int M = 200000;  // laptop-friendly default (~160MB). Original was 1000000.
+  int M = 200000; // laptop-friendly default (~160MB). Original was 1000000.
   int N = 100;
   int K = 10;
   double epsilon = 0.1;
-  if (argc > 1) M = atoi(argv[1]);
+  if (argc > 1)
+    M = atoi(argv[1]);
 
   cout << "Generating data.dat with M=" << M << ", N=" << N << ", K=" << K
        << " ..." << endl;

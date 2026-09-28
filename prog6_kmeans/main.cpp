@@ -16,8 +16,8 @@ using namespace std;
 
 // Main compute functions
 extern void kMeansThread(double *data, double *clusterCentroids,
-                      int *clusterAssignments, int M, int N, int K,
-                      double epsilon);
+                         int *clusterAssignments, int M, int N, int K,
+                         double epsilon);
 extern double dist(double *x, double *y, int nDim);
 
 // Utilities
@@ -102,9 +102,9 @@ int main() {
   // (~160MB, runs in seconds). Set DATA_M = 1000000 to reproduce the original
   // ~800MB workload exactly.
   // ---------------------------------------------------------------------------
-  const int DATA_M = 200000;   // points      (original: 1000000)
-  const int DATA_N = 100;      // dimensions per point
-  const int DATA_K = 10;       // number of clusters
+  const int DATA_M = 200000; // points      (original: 1000000)
+  const int DATA_N = 100;    // dimensions per point
+  const int DATA_K = 10;     // number of clusters
 
   {
     ifstream probe("./data.dat", ios::in | ios::binary);
@@ -113,7 +113,8 @@ int main() {
 
     if (!haveFile) {
       cout << "data.dat not found -- generating it locally "
-              "(CSUSB: no download needed)..." << endl;
+              "(CSUSB: no download needed)..."
+           << endl;
 
       M = DATA_M;
       N = DATA_N;
@@ -154,8 +155,8 @@ int main() {
   readData("./data.dat", &data, &clusterCentroids, &clusterAssignments, &M, &N,
            &K, &epsilon);
 
-  printf("Running K-means with: M=%d, N=%d, K=%d, epsilon=%f\n", M, N,
-         K, epsilon);
+  printf("Running K-means with: M=%d, N=%d, K=%d, epsilon=%f\n", M, N, K,
+         epsilon);
 
   // Log the starting state of the algorithm
   logToFile("./start.log", SAMPLE_RATE, data, clusterAssignments,

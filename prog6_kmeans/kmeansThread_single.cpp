@@ -9,11 +9,8 @@
 using namespace std;
 
 typedef struct {
-  // Control work assignments (original range for K clusters)
+  // Control work assignments
   int start, end;
-
-  // new range, range for points in a specific thread (for M points)
-  int mStart, mEnd;
 
   // Shared by all functions
   double *data;
@@ -25,15 +22,15 @@ typedef struct {
 
 /**
  * Checks if the algorithm has converged.
- * 
- * @param prevCost Pointer to the K dimensional array containing cluster costs 
+ *
+ * @param prevCost Pointer to the K dimensional array containing cluster costs
  *    from the previous iteration.
- * @param currCost Pointer to the K dimensional array containing cluster costs 
+ * @param currCost Pointer to the K dimensional array containing cluster costs
  *    from the current iteration.
  * @param epsilon Predefined hyperparameter which is used to determine when
  *    the algorithm has converged.
  * @param K The number of clusters.
- * 
+ *
  * NOTE: DO NOT MODIFY THIS FUNCTION!!!
  */
 static bool stoppingConditionMet(double *prevCost, double *currCost,
@@ -47,7 +44,7 @@ static bool stoppingConditionMet(double *prevCost, double *currCost,
 
 /**
  * Computes L2 distance between two points of dimension nDim.
- * 
+ *
  * @param x Pointer to the beginning of the array representing the first
  *     data point.
  * @param y Poitner to the beginning of the array representing the second
@@ -67,24 +64,27 @@ double dist(double *x, double *y, int nDim) {
  * Assigns each data point to its "closest" cluster centroid.
  */
 void computeAssignments(WorkerArgs *const args) {
-  // assign each of this thread's datapoints to its closest centroid
-  // looping over points on the outside reads each point from memory once and compares it to all K centroids
+  double *minDist = new double[args->M];
 
-  // FLIP M AND K! Let the threads distribute M since M is a larger total 
-  // and can be better split than the small 10 clusters.
-  for (int m = args->mStart; m < args->mEnd; m++) {
-    double minDist = 1e30;
-    int bestK = -1;
-    for (int k = args->start; k < args->end; k++) {
+  // Initialize arrays
+  for (int m = 0; m < args->M; m++) {
+    minDist[m] = 1e30;
+    args->clusterAssignments[m] = -1;
+  }
+
+  // Assign datapoints to closest centroids
+  for (int k = args->start; k < args->end; k++) {
+    for (int m = 0; m < args->M; m++) {
       double d = dist(&args->data[m * args->N],
                       &args->clusterCentroids[k * args->N], args->N);
-      if (d < minDist) {
-        minDist = d;
-        bestK = k;
+      if (d < minDist[m]) {
+        minDist[m] = d;
+        args->clusterAssignments[m] = k;
       }
     }
-    args->clusterAssignments[m] = bestK;
   }
+
+  delete[] minDist;
 }
 
 /**
@@ -102,13 +102,11 @@ void computeCentroids(WorkerArgs *const args) {
     }
   }
 
-
   // Sum up contributions from assigned examples
   for (int m = 0; m < args->M; m++) {
     int k = args->clusterAssignments[m];
     for (int n = 0; n < args->N; n++) {
-      args->clusterCentroids[k * args->N + n] +=
-          args->data[m * args->N + n];
+      args->clusterCentroids[k * args->N + n] += args->data[m * args->N + n];
     }
     counts[k]++;
   }
@@ -153,12 +151,12 @@ void computeCost(WorkerArgs *const args) {
 /**
  * Computes the K-Means algorithm, using std::thread to parallelize the work.
  *
- * @param data Pointer to an array of length M*N representing the M different N 
+ * @param data Pointer to an array of length M*N representing the M different N
  *     dimensional data points clustered. The data is layed out in a "data point
- *     major" format, so that data[i*N] is the start of the i'th data point in 
- *     the array. The N values of the i'th datapoint are the N values in the 
+ *     major" format, so that data[i*N] is the start of the i'th data point in
+ *     the array. The N values of the i'th datapoint are the N values in the
  *     range data[i*N] to data[(i+1) * N].
- * @param clusterCentroids Pointer to an array of length K*N representing the K 
+ * @param clusterCentroids Pointer to an array of length K*N representing the K
  *     different N dimensional cluster centroids. The data is laid out in
  *     the same way as explained above for data.
  * @param clusterAssignments Pointer to an array of length M representing the
@@ -170,8 +168,9 @@ void computeCost(WorkerArgs *const args) {
  * @param epsilon The algorithm is said to have converged when
  *     |currCost[i] - prevCost[i]| < epsilon for all i where i = 0, 1, ..., K-1
  */
-void kMeansThread(double *data, double *clusterCentroids, int *clusterAssignments,
-               int M, int N, int K, double epsilon) {
+void kMeansThread(double *data, double *clusterCentroids,
+                  int *clusterAssignments, int M, int N, int K,
+                  double epsilon) {
 
   // Used to track convergence
   double *prevCost = new double[K];
@@ -203,8 +202,8 @@ void kMeansThread(double *data, double *clusterCentroids, int *clusterAssignment
   //
   // Step 1 (profile): time each of the three calls (e.g. with CycleTimer around
   //   each one) to find the hotspot. For typical inputs the hotspot is
-  //   `computeAssignments` -- it is an O(K * M * N) triple loop over every point
-  //   and every centroid.
+  //   `computeAssignments` -- it is an O(K * M * N) triple loop over every
+  //   point and every centroid.
   // Step 2 (parallelize): split that function's outer loop across threads. The
   //   `start`/`end` fields already in WorkerArgs are meant for this: give each
   //   thread its own [start, end) slice and launch std::thread workers (see how
@@ -217,14 +216,12 @@ void kMeansThread(double *data, double *clusterCentroids, int *clusterAssignment
   //  4-core laptop and a 16-core machine are judged on the same fair scale.)
   // ===========================================================================
 
-  // split the M data points evenly across a fixed thread count
-  // based on my AMD Ryzen 5 5600X having 6 cores, 12 threads
-  int numThreads = 6;
-  thread workers[64];
-  WorkerArgs threadArgs[64];
-
   /* Main K-Means Algorithm Loop */
   int iter = 0;
+
+  // define time variables
+  double tAssign = 0, tCentroids = 0, tCost = 0;
+
   while (!stoppingConditionMet(prevCost, currCost, epsilon, K)) {
     // Update cost arrays (for checking convergence criteria)
     for (int k = 0; k < K; k++) {
@@ -235,34 +232,25 @@ void kMeansThread(double *data, double *clusterCentroids, int *clusterAssignment
     args.start = 0;
     args.end = K;
 
-    // Parallel assignment step: give each thread an equal [mStart, mEnd)
-    // the last thread also takes any remainder. thread 0's share runs on this thread
-
-    // split points (M) among threads
-    for (int i = 0; i < numThreads; i++) {
-      threadArgs[i] = args;
-      threadArgs[i].mStart = i * (M / numThreads);
-      threadArgs[i].mEnd = (i == numThreads - 1) ? M : (i + 1) * (M / numThreads);
-    }
-
-    // spawn threads
-    for (int i = 1; i < numThreads; i++)
-      workers[i] = thread(computeAssignments, &threadArgs[i]);
-    
-    // do assignments for this thread (thread 0)
-    computeAssignments(&threadArgs[0]);
-    
-    // wait for all threads to finish
-    for (int i = 1; i < numThreads; i++)
-      workers[i].join();
-
-    // end of parallel computeAssignments
-    
+    // add timers to each individual function to see where to parallelize (find
+    // most compute intensive part)
+    double t0 = CycleTimer::currentSeconds();
+    computeAssignments(&args);
+    double t1 = CycleTimer::currentSeconds();
     computeCentroids(&args);
+    double t2 = CycleTimer::currentSeconds();
     computeCost(&args);
+    double t3 = CycleTimer::currentSeconds();
+
+    tAssign += t1 - t0;
+    tCentroids += t2 - t1;
+    tCost += t3 - t2;
 
     iter++;
   }
+
+  printf("iters=%d  assign=%.1f ms  centroids=%.1f ms  cost=%.1f ms\n", iter,
+         tAssign * 1000, tCentroids * 1000, tCost * 1000);
 
   delete[] currCost;
   delete[] prevCost;

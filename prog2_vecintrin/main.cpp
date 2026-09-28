@@ -296,7 +296,9 @@ void clampedExpVector(float* values, int* exponents, float* output, int N) {
     _cse5250_vmove_int(count, y, maskActive);
 
     // find lanes where count > 0, multiply those, decrement those
-    __cse5250_mask maskWorking;
+    // start all-false: vgt only writes active lanes, so inactive lanes would
+    // otherwise keep garbage and the while loop below would never end
+    __cse5250_mask maskWorking = _cse5250_init_ones(0);
     _cse5250_vgt_int(maskWorking, count, zero_i, maskActive);
 
     while (_cse5250_cntbits(maskWorking) > 0) {
@@ -309,7 +311,7 @@ void clampedExpVector(float* values, int* exponents, float* output, int N) {
     }
 
     // Step 4: clamp result where result > 9.999999f, set to 9.999999f
-    __cse5250_mask maskClamp;
+    __cse5250_mask maskClamp = _cse5250_init_ones(0);
     _cse5250_vgt_float(maskClamp, result, clamp, maskActive);
     _cse5250_vset_float(result, 9.999999f, maskClamp);
 
